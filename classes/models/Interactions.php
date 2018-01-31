@@ -1,87 +1,78 @@
 <?php 
 require '../File.php';
 require 'Users.php';
+require 'Brands.php';
 
 class Interactions extends File {
 	private $fileUser;
+	private $fileBrand;
 	private $fileInteractions;
-	private $users = [];
-	private $brands = [];
 	private $interactions = [];
-	private $array_quantity_interactions_user;
 
 	function __construct(){
 		$users = new Users;
+		$brands = new Brands;
 		$this->fileUser = $users->get();
+		$this->fileBrand = $brands->get();
 		$this->fileInteractions = $this->read('metricas-interacao-usuarios/src/interactions.json');
 	}
 
-	function findData(){
+	function findData($name){
+		$users_repeated = [];
 		foreach($this->fileInteractions as $arr){
-			if(!in_array($arr['user'], $this->users)){
-				$this->users[] = $arr['user'];
-				$this->interactions['users'][] = ['id' => $arr['user'], 'quantity' => 1];
+			if(!in_array($arr[$name], $users_repeated)){
+				$users_repeated[] = $arr[$name];
+				$this->interactions[$name][] = ['id' => $arr[$name], 'quantity' => 1];
 			} else{
-				$quantidade = count($this->interactions['users']);
+				$quantidade = count($this->interactions[$name]);
 
 				for ($i = 0; $i < $quantidade; $i++) { 
-					if($this->interactions['users'][$i]['id'] == $arr['user']){
-						$this->interactions['users'][$i]['quantity'] += 1;
-						break;
-					}
-				}
-			}
-
-			if(!in_array($arr['brand'], $this->brands)){
-				$this->brands[] = $arr['brand'];
-				$this->interactions['brands'][] = ['id' => $arr['brand'], 'quantity' => 1];
-			}else{
-				$quantidade = count($this->interactions['brands']);
-
-				for ($i = 0; $i < $quantidade; $i++) { 
-					if($this->interactions['brands'][$i]['id'] == $arr['brand']){
-						$this->interactions['brands'][$i]['quantity'] += 1;
+					if($this->interactions[$name][$i]['id'] == $arr[$name]){
+						$this->interactions[$name][$i]['quantity'] += 1;
 						break;
 					}
 				}
 			}
 		}
 
-		$this->findNameUser();
+		$this->findFieldName($name);
 	}
 
-    private function findNameUser(){
-		$quantidade_interactions = count($this->interactions['users']);
+    private function findFieldName($name){
+		$quantidade_interactions = count($this->interactions[$name]);
+		$file = ($name == 'user') ? $this->fileUser : $this->fileBrand;
 
 		for($i = 0; $i < $quantidade_interactions; $i++){
-			foreach($this->fileUser as $keyUser){
-				if($this->interactions['users'][$i]['id'] == $keyUser['id']){
-					$this->interactions['users'][$i]['name'] = $keyUser['name']['first'] . ' ' . $keyUser['name']['last'];
+			foreach($file as $key){
+				if($this->interactions[$name][$i]['id'] == $key['id']){
+					$value = ($name == 'user') ?  $key['name']['first'] . ' ' . $key['name']['last'] : $key['name'];
+					$this->interactions[$name][$i]['name'] = $value;
 				}	
 			}
 		}
 	}
 
-	function get(){
-		return $this->order();
+	function get($name){
+		return $this->order($name);
 	}
 
-	function order(){
-		$quantity_interactions = count($this->interactions['users']);
+	function order($name){
+		$quantity_interactions = count($this->interactions[$name]);
 		$ids_repeated = [];
+		$array_quantity_interactions_user = [];
 
-		foreach($this->interactions['users'] as $key){
-			$this->array_quantity_interactions_user[] = $key['quantity'];
+		foreach($this->interactions[$name] as $key){
+			$array_quantity_interactions_user[] = $key['quantity'];
 		}
 
-		arsort($this->array_quantity_interactions_user);
+		arsort($array_quantity_interactions_user);
 
-		foreach($this->array_quantity_interactions_user as $quantity_value){
-			foreach($this->interactions['users'] as $key){
+		foreach($array_quantity_interactions_user as $quantity_value){
+			foreach($this->interactions[$name] as $key){
 				if($quantity_value == $key['quantity'] && !in_array($key['id'], $ids_repeated)){
 					$order[] = ['id' => $key['id'], 'name' => $key['name'], 'quantity' => $key['quantity']];
 					$ids_repeated[] = $key['id'];
-					array_values($this->interactions['users']);
+					array_values($this->interactions[$name]);
 					break;
 				}
 			}
